@@ -19,6 +19,16 @@ imageSourceUrl = 'https://'+ app.config['BLOB_ACCOUNT']  + '.blob.core.windows.n
 @app.route('/home')
 @login_required
 def home():
+    log = request.values.get('log_button')
+    if log:
+        if log == 'info':
+            app.logger.info('No issue.')
+        elif log == 'warning':
+            app.logger.warning('Warning occurred.')
+        elif log == 'error':
+            app.logger.error('Error occurred.')
+        elif log == 'critical':
+            app.logger.critical('Critical error occurred.')
     user = User.query.filter_by(username=current_user.username).first_or_404()
     posts = Post.query.all()
     return render_template(
@@ -85,8 +95,11 @@ def authorized():
         return render_template("auth_error.html", result=request.args)
     if request.args.get('code'):
         cache = _load_cache()
-        # TODO: Acquire a token from a built msal app, along with the appropriate redirect URI
-        result = None
+        # Acquire a token from a built msal app, along with the appropriate redirect URI
+        result = _build_msal_app(cache=cache).acquire_token_by_authorization_code(
+            request.args['code'],
+            scopes=Config.SCOPE,
+            redirect_uri=url_for('authorized', _external=True, _scheme='https'))
         if "error" in result:
             return render_template("auth_error.html", result=result)
         session["user"] = result.get("id_token_claims")
@@ -111,18 +124,33 @@ def logout():
     return redirect(url_for('login'))
 
 def _load_cache():
-    # TODO: Load the cache from `msal`, if it exists
-    cache = None
+    # Load the cache from `msal`, if it exists
+
+    cache = msal.SerializableTokenCache()
+    cached = session.get("token_cache")
+    if cached:
+        try:
+            cache.deserialize(cached)
+        except ValueError:
+            # Corrupted or incompatible cache
+            cache = msal.SerializableTokenCache()
     return cache
 
 def _save_cache(cache):
-    # TODO: Save the cache, if it has changed
-    pass
+    # Save the cache, if it has changed
+    if cache.has_state_changed:
+        session['token_cache'] = cache.serialize()
 
 def _build_msal_app(cache=None, authority=None):
-    # TODO: Return a ConfidentialClientApplication
-    return None
+    # Return a ConfidentialClientApplication
+    return msal.ConfidentialClientApplication(
+        Config.CLIENT_ID, authority=authority or Config.AUTHORITY,
+        client_credential=Config.CLIENT_SECRET, token_cache=cache)
 
 def _build_auth_url(authority=None, scopes=None, state=None):
-    # TODO: Return the full Auth Request URL with appropriate Redirect URI
-    return None
+    # Return the full Auth Request URL with appropriate Redirect URI
+    return _build_msal_app(authority=authority).get_authorization_request_url(
+        scopes or [],
+        state=state or str(uuid.uuid4()),
+        redirect_uri=url_for('authorized', _external=True,_scheme='https')
+    )
