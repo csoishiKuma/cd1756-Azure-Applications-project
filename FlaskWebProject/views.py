@@ -29,7 +29,14 @@ def home():
             app.logger.error('Error occurred.')
         elif log == 'critical':
             app.logger.critical('Critical error occurred.')
+    if not current_user.is_authenticated:
+        app.logger.warning("Attempt to access cms application by unauthenticated user.")
+        redirect(url_for('login')) 
     user = User.query.filter_by(username=current_user.username).first_or_404()
+    
+    if not user:
+        app.logger.error(f"Invalid user attempted access: {current_user.username}")
+        redirect(url_for('login'))
     posts = Post.query.all()
     return render_template(
         'index.html',
