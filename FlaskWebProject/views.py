@@ -19,16 +19,6 @@ imageSourceUrl = 'https://'+ app.config['BLOB_ACCOUNT']  + '.blob.core.windows.n
 @app.route('/home')
 @login_required
 def home():
-    log = request.values.get('log_button')
-    if log:
-        if log == 'info':
-            app.logger.info('No issue.')
-        elif log == 'warning':
-            app.logger.warning('Warning occurred.')
-        elif log == 'error':
-            app.logger.error('Error occurred.')
-        elif log == 'critical':
-            app.logger.critical('Critical error occurred.')
     if not current_user.is_authenticated:
         app.logger.warning("Attempt to access cms application by unauthenticated user.")
         redirect(url_for('login')) 
@@ -114,6 +104,12 @@ def authorized():
         # Note: In a real app, we'd use the 'name' property from session["user"] below
         # Here, we'll use the admin username for anyone who is authenticated by MS
         user = User.query.filter_by(username="admin").first()
+        
+        if user is None:
+            app.logger.warning(f"Invalid login attempt for username: {user.username}")
+            flash('Invalid username or password')
+            return redirect(url_for('login'))
+
         login_user(user)
         app.logger.info(f"User '{user.username}' successfully logged in via MSAL.")
         _save_cache(cache)

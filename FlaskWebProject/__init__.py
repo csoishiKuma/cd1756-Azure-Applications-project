@@ -13,11 +13,10 @@ app.config.from_object(Config)
 # Add any logging levels and handlers with app.logger
 gunicorn_logger = logging.getLogger('gunicorn.error')
 app.logger.handlers = gunicorn_logger.handlers
-app.logger.setLevel(gunicorn_logger.level)
-# app.logger.setLevel(logging.WARNING)
+app.logger.setLevel(logging.INFO)
 streamHandler = logging.StreamHandler()
-# streamHandler.setLevel(logging.WARNING)
-streamHandler.setLevel(gunicorn_logger.level)
+streamHandler.setLevel(logging.INFO)
+# streamHandler.setLevel(gunicorn_logger.level)
 app.logger.addHandler(streamHandler)
 
 Session(app)
